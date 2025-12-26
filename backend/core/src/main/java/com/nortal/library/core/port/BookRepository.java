@@ -14,5 +14,4 @@ public interface BookRepository {
   void delete(Book book);
 
   boolean existsById(String id);
-
 }

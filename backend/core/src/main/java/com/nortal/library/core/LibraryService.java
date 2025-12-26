@@ -6,6 +6,7 @@ import com.nortal.library.core.port.BookRepository;
 import com.nortal.library.core.port.MemberRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,20 +35,20 @@ public class LibraryService {
     }
     Book entity = book.get();
     // raamat juba laenus error
-    if (entity.getLoanedTo()!=null){
+    if (entity.getLoanedTo() != null) {
       return Result.failure("BOOK IS ALREADY BORROWED OUT");
     }
-    // raamatul on reserveeringuid
+    /*// raamatul on reserveeringuid 
     if (!entity.getReservationQueue().isEmpty()) {
       // raamat reserveeritud kellegile teisele error
-      if (!entity.getReservationQueue().get(0).equals(memberId)){
-        return Result.failure("BOOK IS QUED TO SOMEONE ELSE");
+      if (!entity.getReservationQueue().get(0).equals(memberId)) {
+        return Result.failure("BOOK IS RESERVED TO SOMEONE ELSE");
       }
       // kui raamat oli laenutajale reserveeritud, liigutame järjekorda
       if (entity.getReservationQueue().get(0).equals(memberId)) {
         entity.getReservationQueue().remove(0);
       }
-    } 
+    }*/
 
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
@@ -57,29 +58,22 @@ public class LibraryService {
 
   public ResultWithNext returnBook(String bookId, String memberId) {
     Optional<Book> book = bookRepository.findById(bookId);
-    if (book.isEmpty()) {      
+    if (book.isEmpty()) {
       return ResultWithNext.failure();
     }
-
-    System.out.println("Raamat: " + book);
-    System.out.println("Member id: " + memberId);
-
     Book entity = book.get();
-
-    System.out.println("entity: " + entity);
     // Tagastaja ei ole laenutaja error
-    // Lisatud frontendis app.component.ts : 94 -> this.selectedMemberId! 
-    if (!memberId.equals(entity.getLoanedTo())){
+    // Lisatud frontendis app.component.ts : 94 -> this.selectedMemberId!
+    if (!memberId.equals(entity.getLoanedTo())) {
       return ResultWithNext.failure();
     }
     entity.setLoanedTo(null);
     entity.setDueDate(null);
     String nextMember =
         entity.getReservationQueue().isEmpty() ? null : entity.getReservationQueue().get(0);
-    
-    // Kui on järjekorras järgmine, laenutame kohe järgmisele
-    
-    if (nextMember != null) {
+
+    // Kui on järjekorras järgmine ja pole piirangut, laenutame kohe järgmisele
+    if (nextMember != null && canMemberBorrow(nextMember)) {
       entity.setLoanedTo(nextMember);
       entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
       entity.getReservationQueue().remove(0);
@@ -99,18 +93,18 @@ public class LibraryService {
     }
 
     Book entity = book.get();
-    //lükkame tagasi topelt reserveeringud
-    if( entity.getReservationQueue().contains(memberId) ){
-      return Result.failure("MEMBER ALREADY IN QUE");
+    // lükkame tagasi topelt reserveeringud
+    if (entity.getReservationQueue().contains(memberId)) {
+      return Result.failure("MEMBER ALREADY IN QUEUE");
     }
-    //Kui on laenutatud juba lükkame tagasi sama kasutaja reserveeringu
-    if(entity.getLoanedTo() != null){   
-      if (entity.getLoanedTo().equals(memberId)){
+    // Kui on laenutatud juba lükkame tagasi sama kasutaja reserveeringu
+    if (entity.getLoanedTo() != null) {
+      if (entity.getLoanedTo().equals(memberId)) {
         return Result.failure("MEMBER ALREADY HAS THIS BOOK");
       }
     }
-    //Kui raamat pole laenutatud, teisi reserveeringuid pole ja on lubatud laenutada, laenutame kohe
-    if(entity.getLoanedTo() == null && entity.getReservationQueue().isEmpty() && canMemberBorrow(memberId)){
+    // Kui raamat pole laenutatud ja on lubatud laenutada, laenutame kohe
+    if (entity.getLoanedTo() == null && canMemberBorrow(memberId)) {
       entity.setLoanedTo(memberId);
       entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
       bookRepository.save(entity);
@@ -284,47 +278,39 @@ public class LibraryService {
     if (existing.isEmpty()) {
       return Result.failure("MEMBER_NOT_FOUND");
     }
-    //eemaldame reserveeringud ja laenutused
-    for (Book book : allBooks()){
-      System.out.println("Raamat: " + book.getId());
-      //kui on järjekord
-      if (!book.getReservationQueue().isEmpty()){
-        //kui kasutaja järjekorras, eemaldame
+    // eemaldame reserveeringud ja laenutused
+    List<Book> books = allBooks();
+    for (Book book : books) {
+      // kui on järjekord
+      if (!book.getReservationQueue().isEmpty()) {
+        // kui kasutaja järjekorras, eemaldame
         if (book.getReservationQueue().contains(id)) {
-          System.out.println("Eemaldame järjekorrast...");
           book.getReservationQueue().remove(id);
         }
       }
-      //Kui raamat laenutatud kasutajale, tagastame
-      System.out.println("Kontrollime laenutusi...");
-      if (book.getLoanedTo() != null){
-        if(book.getLoanedTo().equals(id)){
-        System.out.println("Eemaldame laenutuse...");
-        book.setLoanedTo(null);
-        book.setDueDate(null);
+      // Kui raamat laenutatud kasutajale, tagastame
+      if (book.getLoanedTo() != null) {
+        if (book.getLoanedTo().equals(id)) {
+          book.setLoanedTo(null);
+          book.setDueDate(null);
         }
       }
-      //kui veel järjekord, laenutame kohe järgmisele kellele võib
-      System.out.println("Kontrollime kas veel järjekord..." + book.getReservationQueue());
-      if (!book.getReservationQueue().isEmpty()){
-        System.out.println("Laenutame järgmisele...");
-        for ( String inQue : book.getReservationQueue()){
-          System.out.println("Järjekorras järgmine: " + inQue);
-          if (canMemberBorrow(inQue)){
-            System.out.println("Laenutame: " + inQue + " -le");
-            book.setLoanedTo(inQue);
-            System.out.println("setLoanedTo tehtud");
+      // kui veel järjekord, laenutame kohe järgmisele kellele võib
+      if (!book.getReservationQueue().isEmpty()) {
+        // Iteraatoriga
+        Iterator<String> it = book.getReservationQueue().iterator();
+        while (it.hasNext()) {
+          String inQueue = it.next();
+          if (canMemberBorrow(inQueue)) {
+            book.setLoanedTo(inQueue);
             book.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
-            System.out.println("dueDate tehtud");
-            book.getReservationQueue().remove(inQue);
-            System.out.println("järjekorrast eemaldatud");
+            it.remove();
+            break;
           }
         }
       }
     }
-    System.out.println("kustutame...");
     memberRepository.delete(existing.get());
-    System.out.println("kustutatud");
     return Result.success();
   }
 
