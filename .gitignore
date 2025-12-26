@@ -12,7 +12,6 @@ frontend/.angular/cache
 # Backend Gradle
 backend/.gradle
 backend/build
-backend/core/build
 .gradle/
 .gradle/**/*
 
@@ -38,3 +37,7 @@ backend/api/spy.log
 # Internal-only
 internal/
 backend/hidden-tests/
+
+# Gradle / build output
+**/build/
+**/.gradle/
