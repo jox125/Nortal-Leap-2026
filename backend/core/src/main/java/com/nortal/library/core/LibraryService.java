@@ -38,6 +38,10 @@ public class LibraryService {
     if (entity.getLoanedTo() != null) {
       return Result.failure("BOOK IS ALREADY BORROWED OUT");
     }
+    // raamat on reserveeritud  ja järjekorras esimene ei ole laenutaja
+    if (!entity.getReservationQueue().isEmpty() && !entity.getReservationQueue().get(0).equals(memberId)){
+      return Result.failure("BOOK IS RESERVED TO: " + entity.getReservationQueue().get(0));
+    }
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
     bookRepository.save(entity);
