@@ -97,8 +97,11 @@ public class LibraryService {
         return Result.failure("MEMBER ALREADY HAS THIS BOOK");
       }
     }
-    // Kui raamat pole laenutatud ja on lubatud laenutada, laenutame kohe
-    if (entity.getLoanedTo() == null && canMemberBorrow(memberId)) {
+    // Kui raamat pole laenutatud, on lubatud laenutada,
+    // ja pole järjekorda, laenutame kohe
+    if (entity.getLoanedTo() == null 
+        && canMemberBorrow(memberId) 
+        && entity.getReservationQueue().isEmpty()) {
       entity.setLoanedTo(memberId);
       entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
       bookRepository.save(entity);
