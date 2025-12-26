@@ -44,6 +44,10 @@ public class LibraryService {
     }
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
+    //Kui laenutaja oli järjekorras esimene, liigutame järjekorra edasi
+    if(!entity.getReservationQueue().isEmpty() && entity.getReservationQueue().get(0).equals(memberId)){
+      entity.getReservationQueue().remove(0);
+    }
     bookRepository.save(entity);
     return Result.success();
   }
@@ -64,14 +68,6 @@ public class LibraryService {
     String nextMember =
         entity.getReservationQueue().isEmpty() ? null : entity.getReservationQueue().get(0);
 
-    // Kui on järjekorras järgmine ja pole piirangut, laenutame kohe järgmisele
-    /*
-    if (nextMember != null && canMemberBorrow(nextMember)) {
-      entity.setLoanedTo(nextMember);
-      entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
-      entity.getReservationQueue().remove(0);
-    }
-      */
     // kui on järjekord, laenutame kohe järgmisele, kes võib laenutada
     if (nextMember != null) {
       nextMember = loanToNextAlowed(entity);
